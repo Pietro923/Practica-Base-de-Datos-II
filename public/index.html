@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB Demo - Base de Datos II</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>MongoDB Práctica</h1>
+            <p>Base de Datos II - UTN FRT</p>
+        </div>
+
+        <div class="content">
+            <div class="section">
+                <h2>📝 Insertar Estudiante</h2>
+                <form id="studentForm">
+                    <div class="form-group">
+                        <label for="nombre">Nombre:</label>
+                        <input type="text" id="nombre" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="apellido">Apellido:</label>
+                        <input type="text" id="apellido" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edad">Edad:</label>
+                        <input type="number" id="edad" min="18" max="65" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="carrera">Carrera:</label>
+                        <select id="carrera" required>
+                            <option value="">Seleccionar carrera</option>
+                            <option value="Sistemas">Ingeniería en Sistemas</option>
+                            <option value="Industrial">Ingeniería Industrial</option>
+                            <option value="Electronica">Ingeniería Electrónica</option>
+                            <option value="Civil">Ingeniería Civil</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="materias">Materias (separadas por coma):</label>
+                        <textarea id="materias" rows="3" placeholder="Base de Datos, Algoritmos, Programación"></textarea>
+                    </div>
+                    <button type="submit">➕ Insertar Estudiante</button>
+                </form>
+                <div id="insertStatus" class="status"></div>
+            </div>
+
+            <div class="section">
+                <h2>🔍 Consultas</h2>
+                <div class="form-group">
+                    <label for="queryType">Tipo de consulta:</label>
+                    <select id="queryType">
+                        <option value="all">Todos los estudiantes</option>
+                        <option value="byCarrera">Por carrera</option>
+                        <option value="byEdad">Por edad mínima</option>
+                        <option value="count">Contar estudiantes</option>
+                    </select>
+                </div>
+                <div class="form-group" id="filterGroup" style="display: none;">
+                    <label for="filterValue">Valor del filtro:</label>
+                    <input type="text" id="filterValue">
+                </div>
+                <button onclick="executeQuery()">🚀 Ejecutar Consulta</button>
+                <button onclick="cargarEstudiantes()" class="btn-secondary">🔄 Recargar Datos</button>
+                <div id="queryStatus" class="status"></div>
+            </div>
+
+            <div class="results">
+                <h2>📊 Resultados</h2>
+                <div class="results-header">
+                    <span id="connectionStatus" class="connection-status">🔄 Conectando...</span>
+                    <button onclick="limpiarResultados()" class="btn-clear">🗑️ Limpiar</button>
+                </div>
+                <pre id="resultArea">Conectando con MongoDB...
+
+🍃 MongoDB Práctica - UTN FRT
+
+Para comenzar:
+1. Asegúrense de que MongoDB esté ejecutándose
+2. Asegúrense de que el servidor Node.js esté ejecutándose
+3. Inserten algunos estudiantes usando el formulario
+4. Ejecuten consultas para ver los datos
+
+Esta aplicación se conecta a MongoDB real a través del servidor Node.js.</pre>
+            </div>
+        </div>
+
+        <div class="query-examples">
+            <h2>📚 Ejemplos de Consultas MongoDB</h2>
+            
+            <div class="query-item">
+                <h3>1. Insertar un documento</h3>
+                <p><code>db.estudiantes.insertOne({nombre: "Juan", apellido: "Pérez", edad: 22, carrera: "Sistemas"})</code></p>
+            </div>
+
+            <div class="query-item">
+                <h3>2. Encontrar todos los documentos</h3>
+                <p><code>db.estudiantes.find()</code></p>
+            </div>
+
+            <div class="query-item">
+                <h3>3. Filtrar por campo específico</h3>
+                <p><code>db.estudiantes.find({carrera: "Sistemas"})</code></p>
+            </div>
+
+            <div class="query-item">
+                <h3>4. Usar operadores de comparación</h3>
+                <p><code>db.estudiantes.find({edad: {$gte: 21}})</code></p>
+            </div>
+
+            <div class="query-item">
+                <h3>5. Proyección (seleccionar campos)</h3>
+                <p><code>db.estudiantes.find({}, {nombre: 1, carrera: 1})</code></p>
+            </div>
+
+            <div class="query-item">
+                <h3>6. Ordenar resultados</h3>
+                <p><code>db.estudiantes.find().sort({edad: -1})</code></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

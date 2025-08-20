@@ -1,0 +1,21 @@
+{
+  "name": "mongodb-utn-practica",
+  "version": "1.0.0",
+  "description": "Aplicación práctica MongoDB para Base de Datos II - UTN FRT",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": ["mongodb", "nodejs", "express", "utn", "base-de-datos"],
+  "author": "Pietro UTN",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongodb": "^6.3.0",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
