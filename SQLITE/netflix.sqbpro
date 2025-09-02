@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="netflix.db" readonly="0" foreign_keys="0" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="3"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="1494"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><table title="netflix_titles" custom_title="0" dock_id="2" table="4,14:mainnetflix_titles"/><dock_state state="000000ff00000000fd00000001000000020000077200000389fc0100000001fc00000000000007720000011700fffffffa000000010100000005fb000000160064006f0063006b00420072006f00770073006500310000000000ffffffff0000000000000000fb000000160064006f0063006b00420072006f00770073006500320100000000ffffffff0000011700fffffffb000000160064006f0063006b00420072006f00770073006500330000000000ffffffff0000000000000000fb000000160064006f0063006b00420072006f00770073006500340000000000ffffffff0000000000000000fb000000160064006f0063006b00420072006f00770073006500350000000000ffffffff0000000000000000000002980000000000000004000000040000000800000008fc00000000"/><default_encoding codec=""/><browse_table_settings><table schema="main" name="netflix_titles" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_" freeze_columns="0"><sort/><column_widths><column index="1" value="63"/><column index="2" value="59"/><column index="3" value="300"/><column index="4" value="300"/><column index="5" value="300"/><column index="6" value="300"/><column index="7" value="124"/><column index="8" value="92"/><column index="9" value="51"/><column index="10" value="73"/><column index="11" value="300"/><column index="12" value="300"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table></browse_table_settings></tab_browse><tab_sql><sql name="SQL 1*">-- 👉 Cuenta cuántos registros (filas) hay en la tabla netflix_titles.
+-- Es lo primero que se suele hacer para ver el tamaño de la base de datos.
+
+SELECT COUNT(*) as total_registros FROM netflix_titles;</sql><sql name="SQL 2*">-- 👉 Agrupa el contenido por tipo (Movie o TV Show) y cuenta cuántos hay de cada uno.
+-- Sirve para ver la proporción de películas vs series.
+SELECT type, COUNT(*) as cantidad 
+FROM netflix_titles 
+GROUP BY type;</sql><sql name="SQL 3*">-- 👉 Agrupa por año de lanzamiento (release_year), cuenta cuántos títulos se lanzaron ese año, los ordena de mayor a menor y muestra los 10 años con más producciones.
+SELECT release_year, COUNT(*) as cantidad
+FROM netflix_titles 
+WHERE release_year IS NOT NULL
+GROUP BY release_year 
+ORDER BY cantidad DESC 
+LIMIT 10;</sql><sql name="SQL 4*">-- 👉 Esta es más compleja, te la desarmo:
+-- contenido_por_decada (CTE 1)
+-- Clasifica cada título en una década (2020s, 2010s, etc.).
+-- Agrupa por década y tipo de contenido (Movie/TV Show).
+-- Cuenta cuántos títulos hay.
+-- Calcula el % de contenido adulto (clasificación TV-MA o R) dentro de cada grupo.
+-- estadisticas_generales (CTE 2)
+-- alcula el promedio de títulos por categoría (decada + tipo).
+-- Query final
+-- Une ambas CTE.
+-- Muestra: década, tipo, cantidad, % de adultos, y si la categoría está por encima o por debajo del promedio.
+-- 👉 Básicamente, te da una visión histórica: qué décadas tuvieron más contenido y cuán adulto era.
+WITH contenido_por_decada AS (
+    SELECT 
+        CASE 
+            WHEN release_year &gt;= 2020 THEN '2020s'
+            WHEN release_year &gt;= 2010 THEN '2010s' 
+            WHEN release_year &gt;= 2000 THEN '2000s'
+            WHEN release_year &gt;= 1990 THEN '1990s'
+            ELSE 'VIEJA'
+        END as decada,
+        type,
+        COUNT(*) as cantidad,
+        AVG(CASE WHEN rating IN ('TV-MA', 'R') THEN 1 ELSE 0 END) * 100 as porcentaje_adulto
+    FROM netflix_titles 
+    WHERE release_year IS NOT NULL
+    GROUP BY decada, type
+),
+estadisticas_generales AS (
+    SELECT AVG(cantidad) as promedio_por_categoria
+    FROM contenido_por_decada
+)
+SELECT 
+    cpd.decada,
+    cpd.type,
+    cpd.cantidad,
+    ROUND(cpd.porcentaje_adulto, 1) as porcentaje_contenido_adulto,
+    CASE 
+        WHEN cpd.cantidad &gt; eg.promedio_por_categoria THEN 'Por encima del promedio'
+        ELSE 'Por debajo del promedio'
+    END as clasificacion
+FROM contenido_por_decada cpd
+CROSS JOIN estadisticas_generales eg
+ORDER BY cpd.decada DESC, cpd.cantidad DESC;</sql><sql name="SQL 5*">-- 👉 Paso a paso:
+-- Filtra: solo países únicos (no coproducciones) y desde 2015.
+-- Agrupa por país y año y cuenta cuántas producciones hicieron.
+-- RANK() OVER (PARTITION BY release_year)
+-- → Ranking de países en cada año según cantidad de producciones.
+-- LAG(COUNT(*)) OVER
+-- → Trae el valor del año anterior para ese país.
+-- Calcula el crecimiento como diferencia entre el año actual y el anterior.
+-- 👉 Esto te da una tabla con el ranking anual por país y su evolución año a año.
+
+SELECT 
+    country,
+    release_year,
+    COUNT(*) as producciones_año,
+    RANK() OVER (PARTITION BY release_year ORDER BY COUNT(*) DESC) as ranking_anual,
+    LAG(COUNT(*)) OVER (PARTITION BY country ORDER BY release_year) as producciones_año_anterior,
+    COUNT(*) - LAG(COUNT(*)) OVER (PARTITION BY country ORDER BY release_year) as crecimiento
+FROM netflix_titles 
+WHERE country IS NOT NULL 
+    AND country NOT LIKE '%,%'  -- Solo países únicos, no coproducciones
+    AND release_year &gt;= 2015
+GROUP BY country, release_year
+HAVING COUNT(*) &gt;= 3  -- Solo países con al menos 3 producciones por año
+ORDER BY release_year DESC, ranking_anual;</sql><sql name="SQL 6*">--👉 Esta query simula un ROLLUP (que SQLite no soporta):
+-- Primer bloque → Detalle por tipo + rating + periodo.
+-- Segundo bloque → Subtotales por tipo + rating.
+-- Tercer bloque → Subtotales solo por tipo.
+-- Cuarto bloque → Total general.
+-- El ORDER BY acomoda los “TOTAL” al final de cada grupo.
+-- Resultado: un reporte jerárquico de conteos y porcentajes acumulados.
+
+WITH resumen AS (
+   
+    SELECT 
+        type as tipo_contenido,
+        rating as clasificacion,
+        CASE 
+            WHEN release_year &gt;= 2020 THEN '2020+'
+            WHEN release_year &gt;= 2010 THEN '2010-2019'
+            ELSE 'Antes 2010'
+        END as periodo,
+        COUNT(*) as cantidad_titulos,
+        ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM netflix_titles WHERE release_year IS NOT NULL AND rating IS NOT NULL), 2) as porcentaje_total
+    FROM netflix_titles
+    WHERE release_year IS NOT NULL 
+        AND rating IS NOT NULL
+    GROUP BY type, rating, 
+        CASE 
+            WHEN release_year &gt;= 2020 THEN '2020+'
+            WHEN release_year &gt;= 2010 THEN '2010-2019'
+            ELSE 'Antes 2010'
+        END
+
+    UNION ALL
+
+    SELECT 
+        type as tipo_contenido,
+        rating as clasificacion,
+        'TOTAL' as periodo,
+        COUNT(*) as cantidad_titulos,
+        ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM netflix_titles WHERE release_year IS NOT NULL AND rating IS NOT NULL), 2) as porcentaje_total
+    FROM netflix_titles
+    WHERE release_year IS NOT NULL 
+        AND rating IS NOT NULL
+    GROUP BY type, rating
+
+    UNION ALL
+
+    SELECT 
+        type as tipo_contenido,
+        'TOTAL' as clasificacion,
+        'TOTAL' as periodo,
+        COUNT(*) as cantidad_titulos,
+        ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM netflix_titles WHERE release_year IS NOT NULL AND rating IS NOT NULL), 2) as porcentaje_total
+    FROM netflix_titles
+    WHERE release_year IS NOT NULL 
+        AND rating IS NOT NULL
+    GROUP BY type
+
+    UNION ALL
+
+    SELECT 
+        'TOTAL' as tipo_contenido,
+        'TOTAL' as clasificacion,
+        'TOTAL' as periodo,
+        COUNT(*) as cantidad_titulos,
+        100.0 as porcentaje_total
+    FROM netflix_titles
+    WHERE release_year IS NOT NULL 
+        AND rating IS NOT NULL
+)
+SELECT *
+FROM resumen
+ORDER BY 
+    CASE WHEN tipo_contenido = 'TOTAL' THEN 2 ELSE 1 END,
+    tipo_contenido,
+    CASE WHEN clasificacion = 'TOTAL' THEN 2 ELSE 1 END,
+    clasificacion,
+    CASE WHEN periodo = 'TOTAL' THEN 2 ELSE 1 END,
+    periodo;
+</sql><current_tab id="0"/></tab_sql></sqlb_project>
